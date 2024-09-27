@@ -7,7 +7,10 @@
 
 #define BUFFER_SIZE 1024
 #define COMMAND_SIZE 1024
-#define EXTERNAL_COMMAND 0
+
+void handler(int sig) {
+    printf("handler called\n");
+}
 
 
 //function to display promt for the shell
@@ -76,56 +79,75 @@ int execute_internal_commands(char** args){
     return 0;
 }
 
-void input_output_redirect(char* command, char* input_output, char* file){
-    FILE* fp;
-    if(input_output == "<"){ // input
+FILE* input_output_redirect(char* command, char* input_output, char* file){
+    FILE* fp = NULL;
+    if(strcmp(input_output, "<") == 0){ // input
         fp = freopen(file, "r", stdin);
+        if (fp== NULL){
+            perror("freopen");
+        }
     }
-    else if(input_output == ">"){ // output
+    else if(strcmp(input_output, ">") == 0){ // output
         fp = freopen(file, "w", stdout);
-        
-    } 
-    if (fp == NULL) {
-       perror("freopen");
+        if (fp == NULL) {
+            perror("freopen");
+        }
     }
-}   
+    return fp;
+}
+
+int is_background(char** args) {
+    if(args[strlen(args) - 1][0] == '&'){
+        args[strlen(args) - 1] = NULL;
+        return 1;
+    } else {
+        return 0;
+    }
+}
 
 //execute external commands function
-void execute_external_command(char** args){
+void execute_external_command(char** args, int bg){
     //fork the child process
     pid_t pid = fork();
+    
     if (pid == 0){ //in child process
         printf("Child execute command %p: ", args[0]);
         
         int i = 0; //index for the args array
         int inout_redir = 0; // 0 is false, 1 is true, operator is used to check if the input/output redirection is present
+        FILE* file = NULL;
         
         while(args[i] != NULL && inout_redir != 1){
-            if (args[i] == "<" || args[i] == ">"){
-                input_output_redirect(args[0], args[i], args[i+1]);
+            if (args[i][0] == '<' || args[i][0] == '>'){
+                file = input_output_redirect(args[0], args[i], args[i+1]);
                 inout_redir = 1; //condition to break the loop
             }
+            
             i++;
         }
         // remove args[i-1] and args[i] from args
-        if(inout_redir = 1) {
+        if(inout_redir == 1) {
             removeValues(args, i-1);
         }
-        
         
         
         if (execvp(args[0], args) == -1){ //have the child process perform an execvp
             perror("execvp failed: "); 
             exit(EXIT_FAILURE);  // Exit child process if execvp fails
         }
+        if(inout_redir == 1) {
+            fclose(file);
+        }
         
     } else if (pid > 0) { // in parent process
         int status;
-        waitpid(pid, &status, 0); // have the parent process wait for the child to finish.
+        if(bg == 0) {
+            waitpid(pid, &status, 0); // have the parent process wait for the child to finish.
+        }
+    
     } else {
         perror("fork failed");
     }
-
 }
 
 
@@ -140,7 +162,7 @@ int main () {
 
         int_cmd = execute_internal_commands(args);
         if(int_cmd == 0){
-            execute_external_command(args);
+            execute_external_command(args, is_background(args));
         }
     }
 }
