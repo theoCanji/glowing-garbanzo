@@ -10,6 +10,7 @@
 
 void handler(int sig) {
     printf("handler called\n");
+    wait(NULL);
 }
 
 
@@ -140,6 +141,7 @@ void execute_external_command(char** args, int bg){
         }
         
     } else if (pid > 0) { // in parent process
+        signal(SIGCHLD, handler);
         int status;
         if(bg == 0) {
             waitpid(pid, &status, 0); // have the parent process wait for the child to finish.
