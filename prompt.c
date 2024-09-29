@@ -9,7 +9,7 @@
 #define COMMAND_SIZE 1024
 
 void handler(int sig) {
-    printf("handler called\n");
+    //printf("handler called\n");
     wait(NULL);
 }
 
@@ -98,8 +98,14 @@ FILE* input_output_redirect(char* command, char* input_output, char* file){
 }
 
 int is_background(char** args) {
-    if(args[strlen(args) - 1][0] == '&'){
-        args[strlen(args) - 1] = NULL;
+    int i = 0;
+    while (args[i+1] != NULL)
+    {
+        i++;
+    }
+    
+    if(args[i][0] == '&'){
+        args[i] = NULL;
         return 1;
     } else {
         return 0;
