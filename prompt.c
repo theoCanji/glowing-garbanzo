@@ -7,6 +7,8 @@
 
 #define BUFFER_SIZE 1024
 #define COMMAND_SIZE 1024
+#define HISTORY_SIZE 100
+
 
 void handler(int sig) {
     //printf("handler called\n");
@@ -61,7 +63,7 @@ void parseInput(char* command, char **args){
 }
 
 //execute the command (exit and cd). non-zero value is returned if the command is not executed successfully
-int execute_internal_commands(char** args){
+int execute_internal_commands(char** args, char** history, int histCounter){
     if (strcmp(args[0], "exit") == 0 ){
         printf("Goodbye!\n");
         return 2; 
@@ -77,8 +79,28 @@ int execute_internal_commands(char** args){
         }
         return 1;
     }
+    else if (strcmp(args[0], "history") == 0){
+        for (int i = 0; i < histCounter; i++){
+            printf("%d %s\n", i+1, history[i]);
+        }
+        return 1;
+    }
+    //extra credit: 
+    else if (args[0][0] == '!' && args[0][1] != '\0'){
+        int histIndex = atoi(&args[0][1]) - 1; // Convert !{i} to index in history array
+        if(histIndex >= 0 && histIndex < histCounter){
+            printf("Executing command from history: %s\n", history[histIndex]);
+            strcpy(args[0], history[histIndex]); // Replace current command with history command
+            parseInput(history[histIndex], args); // Re-parse command from history
+        } else {
+            
+            printf("No such command in history.\n");
+            return 1;
+        }
+    }
     return 0;
-}
+    }
+
 
 FILE* input_output_redirect(char* command, char* input_output, char* file){
     FILE* fp = NULL;
@@ -163,12 +185,25 @@ int main () {
     char *args[COMMAND_SIZE / 2 + 1]; // Allocate space for arguments
     char command[COMMAND_SIZE];
     int int_cmd = 0; // internal command return
+    
+    //history update
+    char *history[HISTORY_SIZE]; // history command list
+    int histCounter = 0;
+    int eqHist;
+
     while (int_cmd < 2){
         displayPrompt(); 
         getInput(command);
         parseInput(command, args);
 
-        int_cmd = execute_internal_commands(args);
+        eqHist = strcmp(command, "history");
+        printf("strcmp: %d\n", eqHist);
+        if (histCounter < HISTORY_SIZE && command[0] != '!' && eqHist!= 0 && strcmp(command, "history") != 0){
+            history[histCounter] = strdup(command);
+            histCounter++;
+        }
+
+        int_cmd = execute_internal_commands(args, history, histCounter);
         if(int_cmd == 0){
             execute_external_command(args, is_background(args));
         }
